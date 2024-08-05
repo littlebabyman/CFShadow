@@ -26,30 +26,34 @@ function ENT:Initialize()
 
     self:SetAutomaticFrameAdvance(true)
     self:SetMoveType(MOVETYPE_NONE)
+    self:DrawShadow(true)
     self:SetRenderMode(RENDERMODE_NORMAL)
     self:SetMaterial("engine/occlusionproxy")
-    self:DrawShadow(true)
 end
 
-local lastBodygroupApply = 0
+local ENTITY = FindMetaTable("Entity")
+local PLAYER = FindMetaTable("Player")
+local pGetActiveWeapon = PLAYER.GetActiveWeapon
+local eIsValid = ENTITY.IsValid
+local eGetNumBodyGroups = ENTITY.GetNumBodyGroups
+local eGetBodygroup = ENTITY.GetBodygroup
+local eSetBodygroup = ENTITY.SetBodygroup
+local eSetNextClientThink = ENTITY.SetNextClientThink
+local aCurTime = CurTime
+local aIsValid = IsValid
 
 function ENT:Think()
-    local curTime = CurTime()
+    local curTime = aCurTime()
+    local wep = pGetActiveWeapon(ply)
 
-    if lastBodygroupApply + 1.0 < curTime then
-        local wep = ply:GetActiveWeapon()
-
-        if IsValid(wep) and wep:IsValid() then
-            for i = 1, wep:GetNumBodyGroups() do
-                self:SetBodygroup(i, wep:GetBodygroup(i))
-            end
+    if aIsValid(wep) and eIsValid(wep) then
+        for i = 1, eGetNumBodyGroups(wep) do
+            eSetBodygroup(self, i, eGetBodygroup(wep, i))
         end
-
-        lastBodygroupApply = curTime
     end
 
     -- Set the next think to run as soon as possible, i.e. the next frame.
-    self:NextThink(curTime)
+    eSetNextClientThink(self, curTime + 1.0)
 
     -- Apply NextThink call
     return true
@@ -58,14 +62,14 @@ end
 local arc9Ang = Angle(-5, 0, 180)
 
 local getOffsetFuncs = {
-    ["arc9_base"] = function(wep)
-        local wmOffsets = wep.WorldModelOffset
+    ["arc9_base"] = function(wep, wepTable)
+        local wmOffsets = wepTable.WorldModelOffset
         local shouldTPIK = wep:ShouldTPIK()
 
         return shouldTPIK and wmOffsets.TPIKPos or wmOffsets.Pos, shouldTPIK and wmOffsets.TPIKAng or wmOffsets.Ang or arc9Ang, wmOffsets.Scale
     end,
-    ["arccw_base"] = function(wep)
-        local wmOffsets = wep.WorldModelOffset
+    ["arccw_base"] = function(wep, wepTable)
+        local wmOffsets = wepTable.WorldModelOffset
 
         if !wmOffsets then return end
 
@@ -98,7 +102,9 @@ local getOffsetFuncs = {
         aang:RotateAroundAxis(aang:Up(), offsetAng.y)
         aang:RotateAroundAxis(aang:Forward(), offsetAng.r)
 
-        if !apos or !aang then return end
+        if !apos or !aang then
+            return
+        end
 
         return apos, aang, scale
 
@@ -112,25 +118,27 @@ local getOffsetFuncs = {
 
         -- return pos, ang, wmOffsets.scale
     end,
-    ["cw_base"] = function(wep)
-        if wep.DrawTraditionalWorldModel then return end
+    ["cw_base"] = function(wep, wepTable)
+        if wepTable.DrawTraditionalWorldModel then
+            return
+        end
 
-        local wm = wep.WMEnt
+        local wm = wepTable.WMEnt
 
-        if IsValid(wm) then
+        if aIsValid(wm) then
             local hand = ply:LookupBone("ValveBiped.Bip01_R_Hand")
 
             if hand then
                 local pos, ang = ply:GetBonePosition(hand)
 
                 if pos and ang then
-                    ang:RotateAroundAxis(ang:Right(), wep.WMAng.x)
-                    ang:RotateAroundAxis(ang:Up(), wep.WMAng.y)
-                    ang:RotateAroundAxis(ang:Forward(), wep.WMAng.y)
+                    ang:RotateAroundAxis(ang:Right(), wepTable.WMAng.x)
+                    ang:RotateAroundAxis(ang:Up(), wepTable.WMAng.y)
+                    ang:RotateAroundAxis(ang:Forward(), wepTable.WMAng.y)
 
-                    pos = pos + wep.WMPos.x * ang:Right()
-                    pos = pos + wep.WMPos.y * ang:Forward()
-                    pos = pos + wep.WMPos.z * ang:Up()
+                    pos = pos + wepTable.WMPos.x * ang:Right()
+                    pos = pos + wepTable.WMPos.y * ang:Forward()
+                    pos = pos + wepTable.WMPos.z * ang:Up()
                     
                     return pos, ang
                 end
@@ -141,48 +149,65 @@ local getOffsetFuncs = {
     end
 }
 
-function ENT:ApplyWeaponOffsets(wep)
+local eSetRenderOrigin = ENTITY.SetRenderOrigin
+local eSetRenderAngles = ENTITY.SetRenderAngles
+local eGetModelScale = ENTITY.GetModelScale
+local eSetModelScale = ENTITY.SetModelScale
+
+local function ApplyWeaponOffsets(ent, wep, wepTable)
     local origin, angles, scale = nil, nil, nil
-    local getOffsetFunc = getOffsetFuncs[wep.Base]
+    local getOffsetFunc = getOffsetFuncs[wepTable.Base]
 
     if getOffsetFunc then
-        origin, angles, scale = getOffsetFunc(wep)
+        origin, angles, scale = getOffsetFunc(wep, wepTable)
     end
 
     if !origin then
         return
     end
 
-    self:SetRenderOrigin(origin)
-    self:SetRenderAngles(angles)
-    self:SetModelScale(scale or wep:GetModelScale())
+    eSetRenderOrigin(ent, origin)
+    eSetRenderAngles(ent, angles)
+    eSetModelScale(ent, scale or eGetModelScale(wep))
 end
 
+local eGetTable = ENTITY.GetTable
+local eDestroyShadow = ENTITY.DestroyShadow
+local pAlive = PLAYER.Alive
+local pShouldDrawLocalPlayer = PLAYER.ShouldDrawLocalPlayer
+local pFlashlightIsOn = PLAYER.FlashlightIsOn
+local rGetName = FindMetaTable("ITexture").GetName
+local sLower = string.lower
+local wGetWeaponWorldModel = FindMetaTable("Weapon").GetWeaponWorldModel
+local eGetModel = ENTITY.GetModel
+local eSetModel = ENTITY.SetModel
+local eDrawModel = ENTITY.DrawModel
+local eCreateShadow = ENTITY.CreateShadow
 local waterRT = "_rt_waterreflection"
 local emptyString = ""
 
 function ENT:Draw()
-    self:DestroyShadow()
+    eDestroyShadow(self)
 
     -- COMMENT
-    if !IsValid(ply) or !ply:Alive() then
+    if !aIsValid(ply) or !pAlive(ply) then
         return
     end
 
-    local wep = ply:GetActiveWeapon()
+    local wep = pGetActiveWeapon(ply)
 
     -- COMMENT
-    if !IsValid(wep) or !wep:IsValid() then
-        return
-    end
-
-    -- COMMENT
-    if ply:ShouldDrawLocalPlayer() then
+    if !aIsValid(wep) or !eIsValid(wep) then
         return
     end
 
     -- COMMENT
-    if ply:FlashlightIsOn() then
+    if pShouldDrawLocalPlayer(ply) then
+        return
+    end
+
+    -- COMMENT
+    if pFlashlightIsOn(ply) then
         return
     end
 
@@ -190,25 +215,25 @@ function ENT:Draw()
 
     -- WORKAROUND: https://github.com/Facepunch/garrysmod-requests/issues/1943#issuecomment-1039511256
     if rt then
-        local rtName = string.lower(rt:GetName())
+        local rtName = sLower(rGetName(rt))
 
         if rtName == waterRT then
             return
         end
     end
 
-    local wepModel = wep:GetWeaponWorldModel()
+    local wepModel = wGetWeaponWorldModel(wep)
     local didOverride = false
 
     if wepModel == emptyString then
         return
     end
 
-    if !didOverride and self:GetModel() != wepModel then
-        self:SetModel(wepModel)
+    if !didOverride and eGetModel(self) != wepModel then
+        eSetModel(self, wepModel)
     end
 
-    self:ApplyWeaponOffsets(wep)
+    ApplyWeaponOffsets(self, wep, eGetTable(wep))
 
     -- self:SetMaterial("editor/wireframe")
 
@@ -216,10 +241,10 @@ function ENT:Draw()
 
     -- self:SetMaterial("engine/occlusionproxy")
 
-    self:DrawModel()
+    eDrawModel(self)
 
     -- FIXME: Why do we have to do this manually?
-    self:CreateShadow()
+    eCreateShadow(self)
 end
 
 function ENT:OnReloaded()

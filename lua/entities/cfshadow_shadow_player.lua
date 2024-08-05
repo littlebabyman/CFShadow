@@ -9,6 +9,7 @@ ENT.Category        = "chicagoRP"
 ENT.Spawnable       = false
 ENT.AdminSpawnable  = false
 
+local aIsValid = IsValid
 local ply = nil
 
 function ENT:Initialize()
@@ -16,7 +17,7 @@ function ENT:Initialize()
 
     ply = LocalPlayer()
 
-    if !IsValid(ply) then
+    if !aIsValid(ply) then
         self:Remove()
 
         return
@@ -31,22 +32,29 @@ function ENT:Initialize()
     self:SetMaterial("engine/occlusionproxy")
 end
 
-function ENT:CopyLayerSequenceInfo(layer, fromEnt)
-    self:SetLayerSequence(layer, fromEnt:GetLayerSequence(layer))
-    self:SetLayerDuration(layer, fromEnt:GetLayerDuration(layer))
-    self:SetLayerPlaybackRate(layer, fromEnt:GetLayerPlaybackRate(layer))
-    self:SetLayerWeight(layer, fromEnt:GetLayerWeight(layer))
-    self:SetLayerCycle(layer, fromEnt:GetLayerCycle(layer))
-end
-
+local ENTITY = FindMetaTable("Entity")
+local PLAYER = FindMetaTable("Player")
+local eGetModelScale, eSetModelScale = ENTITY.GetModelScale, ENTITY.SetModelScale
+local eGetPos, eSetPos = ENTITY.GetPos, ENTITY.SetPos
+local eGetAngles, eSetAngles = ENTITY.GetAngles, ENTITY.SetAngles
+local eGetSequence, eSetSequence = ENTITY.GetSequence, ENTITY.SetSequence
+local eGetCycle, eSetCycle = ENTITY.GetCycle, ENTITY.SetCycle
+local eGetNumPoseParameters = ENTITY.GetNumPoseParameters
+local eGetPoseParameterRange = ENTITY.GetPoseParameterRange
+local eGetPoseParameter, eSetPoseParameter = ENTITY.GetPoseParameter, ENTITY.SetPoseParameter
+local eInvalidateBoneCache = ENTITY.InvalidateBoneCache
+local eGetNumBodyGroups = ENTITY.GetNumBodyGroups
+local eGetBodygroup, eSetBodygroup = ENTITY.GetBodygroup, ENTITY.SetBodygroup
+local eSetNextClientThink = ENTITY.SetNextClientThink
+local aCurTime = CurTime
 local haveLayeredSequencesBeenFixed = false
 local lastBodygroupApply = 0
 
 function ENT:Think()
-    self:SetModelScale(ply:GetModelScale())
-    self:SetPos(ply:GetPos())
-    self:SetAngles(ply:GetRenderAngles())
-    self:SetSequence(ply:GetSequence())
+    eSetModelScale(self, eGetModelScale(ply))
+    eSetPos(self, eGetPos(ply))
+    eSetAngles(self, eGetAngles(ply))
+    eSetSequence(self, eGetSequence(ply))
 
     -- ISSUE: https://github.com/Facepunch/garrysmod-requests/issues/1723
     if haveLayeredSequencesBeenFixed then
@@ -58,50 +66,68 @@ function ENT:Think()
         self:CopyLayerSequenceInfo(5, ply)
     end
 
-    self:SetCycle(ply:GetCycle())
+    eSetCycle(self, eGetCycle(ply))
 
-    for i = 0, ply:GetNumPoseParameters() - 1 do
-        local min, max = ply:GetPoseParameterRange(i)
+    for i = 0, eGetNumPoseParameters(ply) - 1 do
+        local min, max = eGetPoseParameterRange(ply, i)
 
-        self:SetPoseParameter(i, math.Remap(ply:GetPoseParameter(i), 0, 1, min, max))
+        eSetPoseParameter(self, i, math.Remap(eGetPoseParameter(ply, i), 0, 1, min, max))
     end
 
-    self:InvalidateBoneCache()
+    eInvalidateBoneCache(self)
 
-    local curTime = CurTime()
+    local curTime = aCurTime()
 
     if lastBodygroupApply + 1.0 < curTime then
-        for i = 1, ply:GetNumBodyGroups() do
-            self:SetBodygroup(i, ply:GetBodygroup(i))
+        for i = 1, eGetNumBodyGroups(ply) do
+            eSetBodygroup(self, i, eGetBodygroup(ply, i))
         end
 
         lastBodygroupApply = curTime
     end
 
     -- Set the next think to run as soon as possible, i.e. the next frame.
-    self:NextThink(curTime)
+    eSetNextClientThink(self, curTime)
 
     -- Apply NextThink call
     return true
 end
 
+function ENT:CopyLayerSequenceInfo(layer, fromEnt)
+    self:SetLayerSequence(layer, fromEnt:GetLayerSequence(layer))
+    self:SetLayerDuration(layer, fromEnt:GetLayerDuration(layer))
+    self:SetLayerPlaybackRate(layer, fromEnt:GetLayerPlaybackRate(layer))
+    self:SetLayerWeight(layer, fromEnt:GetLayerWeight(layer))
+    self:SetLayerCycle(layer, fromEnt:GetLayerCycle(layer))
+end
+
+local eDestroyShadow = ENTITY.DestroyShadow
+local pAlive = PLAYER.Alive
+local pShouldDrawLocalPlayer = PLAYER.ShouldDrawLocalPlayer
+local pFlashlightIsOn = PLAYER.FlashlightIsOn
+local rGetName = FindMetaTable("ITexture").GetName
+local sLower = string.lower
+local eGetModel = ENTITY.GetModel
+local eSetModel = ENTITY.SetModel
+local eDrawModel = ENTITY.DrawModel
+local eCreateShadow = ENTITY.CreateShadow
 local waterRT = "_rt_waterreflection"
 
 function ENT:Draw()
-    self:DestroyShadow()
+    eDestroyShadow(self)
 
     -- COMMENT
-    if !IsValid(ply) or !ply:Alive() then
+    if !aIsValid(ply) or !pAlive(ply) then
         return
     end
 
     -- COMMENT
-    if ply:ShouldDrawLocalPlayer() then
+    if pShouldDrawLocalPlayer(ply) then
         return
     end
 
     -- COMMENT
-    if ply:FlashlightIsOn() then
+    if pFlashlightIsOn(ply) then
         return
     end
 
@@ -109,17 +135,17 @@ function ENT:Draw()
 
     -- WORKAROUND: https://github.com/Facepunch/garrysmod-requests/issues/1943#issuecomment-1039511256
     if rt then
-        local rtName = string.lower(rt:GetName())
+        local rtName = sLower(rGetName(rt))
 
         if rtName == waterRT then
             return
         end
     end
 
-    local plyModel = ply:GetModel()
+    local plyModel = eGetModel(ply)
 
-    if self:GetModel() != plyModel then
-        self:SetModel(plyModel)
+    if eGetModel(self) != plyModel then
+        eSetModel(self, plyModel)
     end
 
     -- self:SetMaterial("editor/wireframe")
@@ -128,10 +154,10 @@ function ENT:Draw()
 
     -- self:SetMaterial("engine/occlusionproxy")
 
-    self:DrawModel()
+    eDrawModel(self)
 
     -- FIXME: Why do we have to do this manually?
-    self:CreateShadow()
+    eCreateShadow(self)
 end
 
 function ENT:OnReloaded()
