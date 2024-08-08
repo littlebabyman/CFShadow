@@ -94,9 +94,9 @@ local getOffsetFuncs = {
 
         offsetPos:Mul(scale)
 
-        apos:Add(bang:Forward() * offsetPos.x)
-        apos:Add(bang:Right() * offsetPos.y)
-        apos:Add(bang:Up() * offsetPos.z)
+        apos:Add(aang:Forward() * offsetPos.x)
+        apos:Add(aang:Right() * offsetPos.y)
+        apos:Add(aang:Up() * offsetPos.z)
 
         aang:RotateAroundAxis(aang:Right(), offsetAng.p)
         aang:RotateAroundAxis(aang:Up(), offsetAng.y)
