@@ -28,6 +28,7 @@ function ENT:Initialize()
     self:SetMoveType(MOVETYPE_NONE)
     self:DrawShadow(true)
     self:SetRenderMode(RENDERMODE_NORMAL)
+    self:AddEffects(EF_BONEMERGE)
     self:SetMaterial("engine/occlusionproxy")
 end
 
@@ -68,55 +69,67 @@ local getOffsetFuncs = {
 
         return shouldTPIK and wmOffsets.TPIKPos or wmOffsets.Pos, shouldTPIK and wmOffsets.TPIKAng or wmOffsets.Ang or arc9Ang, wmOffsets.Scale
     end,
+    -- FIXME: broken, base implementation relies on .WMModel which doesn't draw unless localplayer does
     ["arccw_base"] = function(wep, wepTable)
+        -- print("wepTable", wepTable)
+
         local wmOffsets = wepTable.WorldModelOffset
 
-        if !wmOffsets then return end
-
-        local bonename = wmOffsets.bone or "ValveBiped.Bip01_R_Hand"
-        local apos, aang = nil, nil
-
-        if bonename then
-            local boneID = ply:LookupBone(bonename)
-
-            if !boneID then
-                return
-            end
-
-            apos, aang = ply:GetBonePosition(boneID)
-        else
-            apos, aang = Vector(0, 0, 0), Angle(0, 0, 0)
+        if !wmOffsets then
+            return
         end
 
-        local offsetPos = wmOffsets.pos or Vector(0, 0, 0)
-        local offsetAng = wmOffsets.ang or angle_zero
-        local scale = wmOffsets.scale or 1
+        local vm = ply
 
-        offsetPos:Mul(scale)
+        if wepTable.MirrorVMWM then
+            vm = wep
+        end
 
-        apos:Add(aang:Forward() * offsetPos.x)
-        apos:Add(aang:Right() * offsetPos.y)
-        apos:Add(aang:Up() * offsetPos.z)
+        local bonename = wmOffsets.WMBone or "ValveBiped.Bip01_R_Hand"
+        local boneindex = vm:LookupBone(bonename)
 
-        aang:RotateAroundAxis(aang:Right(), offsetAng.p)
-        aang:RotateAroundAxis(aang:Up(), offsetAng.y)
-        aang:RotateAroundAxis(aang:Forward(), offsetAng.r)
+        -- print("bonename/vm: ", bonename, vm)
+
+        if !boneindex then
+            return
+        end
+
+        local bpos, bang = vm:GetBonePosition(boneindex)
+
+        -- print("bpos, bang", bpos, bang)
+
+        local pos = offset or Vector(0, 0, 0)
+        local ang = wmOffsets.OffsetAng or Angle(0, 0, 0)
+        local vs = wmOffsets.scale or 1
+        vscale = Vector(vs, vs, vs)
+
+        pos = pos * vscale
+
+        local moffset = (wmOffsets.ModelOffset or Vector(0, 0, 0))
+        local apos = Vector(0, 0, 0)
+
+        apos = bpos + bang:Forward() * pos.x
+        apos = apos + bang:Right() * pos.y
+        apos = apos + bang:Up() * pos.z
+
+        local aang = Angle(0, 0, 0)
+        aang:Set(bang)
+
+        aang:RotateAroundAxis(aang:Right(), ang.p)
+        aang:RotateAroundAxis(aang:Up(), ang.y)
+        aang:RotateAroundAxis(aang:Forward(), ang.r)
+
+        apos = apos + aang:Forward() * moffset.x
+        apos = apos + aang:Right() * moffset.y
+        apos = apos + aang:Up() * moffset.z
+
+        -- print("apos, aang after :Mul + :Add", apos, aang)
 
         if !apos or !aang then
             return
         end
 
-        return apos, aang, scale
-
-        -- local bone = ply:LookupBone(wmOffsets.bone)
-
-        -- if !bone then return end
-
-        -- local pos, ang = ply:GetBonePosition(bone)
-        -- pos:Add(wmOffsets.pos or vector_origin)
-        -- ang:Add(wmOffsets.ang or angle_zero)
-
-        -- return pos, ang, wmOffsets.scale
+        return apos, aang, vs
     end,
     ["cw_base"] = function(wep, wepTable)
         if wepTable.DrawTraditionalWorldModel then
@@ -149,6 +162,8 @@ local getOffsetFuncs = {
     end
 }
 
+local eAddEffects = ENTITY.AddEffects
+local eRemoveEffects = ENTITY.RemoveEffects
 local eSetRenderOrigin = ENTITY.SetRenderOrigin
 local eSetRenderAngles = ENTITY.SetRenderAngles
 local eGetModelScale = ENTITY.GetModelScale
@@ -163,9 +178,12 @@ local function ApplyWeaponOffsets(ent, wep, wepTable)
     end
 
     if !origin then
+        eAddEffects(ent, EF_BONEMERGE)
+
         return
     end
 
+    eRemoveEffects(ent, EF_BONEMERGE)
     eSetRenderOrigin(ent, origin)
     eSetRenderAngles(ent, angles)
     eSetModelScale(ent, scale or eGetModelScale(wep))
@@ -189,12 +207,19 @@ local emptyString = ""
 function ENT:Draw()
     eDestroyShadow(self)
 
+    -- print("ply valid/alive check incoming!")
+
     -- COMMENT
     if !aIsValid(ply) or !pAlive(ply) then
         return
     end
 
+    -- print("checks incoming!")
+
     local wep = pGetActiveWeapon(ply)
+
+    -- print("wepIsValid", aIsValid(wep))
+    -- print("wepEIsValid", eIsValid(wep))
 
     -- COMMENT
     if !aIsValid(wep) or !eIsValid(wep) then
@@ -225,6 +250,8 @@ function ENT:Draw()
     local wepModel = wGetWeaponWorldModel(wep)
     local didOverride = false
 
+    -- print("wepModel", wepModel)
+
     if wepModel == emptyString then
         return
     end
@@ -232,6 +259,8 @@ function ENT:Draw()
     if !didOverride and eGetModel(self) != wepModel then
         eSetModel(self, wepModel)
     end
+
+    -- print("checks passed!")
 
     ApplyWeaponOffsets(self, wep, eGetTable(wep))
 

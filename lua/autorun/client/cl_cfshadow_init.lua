@@ -34,7 +34,6 @@ local function MakeShadows()
 	weaponShadow = ents.CreateClientside("cfshadow_shadow_weapon")
 	weaponShadow:SetModel(plyModel)
 	weaponShadow:SetParent(playerShadow)
-	weaponShadow:AddEffects(EF_BONEMERGE)
 	weaponShadow:Spawn()
 	-- weaponShadow:Activate()
 end
@@ -55,7 +54,9 @@ cvars.AddChangeCallback("cl_firstperson_shadow", function(convar, old, new)
 		return
 	end
 
-	if new then
+	local bool = new == "1" and true or false
+
+	if bool then
 		MakeShadows()
 	else
 		DestroyShadows()
