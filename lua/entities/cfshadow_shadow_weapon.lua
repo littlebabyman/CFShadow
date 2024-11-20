@@ -22,8 +22,6 @@ function ENT:Initialize()
         return
     end
 
-    -- MsgC(color_white, "[", Color(200, 0, 0), "CFShadow", color_white, "] - Firstperson weapon shadow's player validity check passed!", "\n")
-
     self:SetAutomaticFrameAdvance(true)
     self:SetMoveType(MOVETYPE_NONE)
     self:DrawShadow(true)
@@ -69,10 +67,8 @@ local getOffsetFuncs = {
 
         return shouldTPIK and wmOffsets.TPIKPos or wmOffsets.Pos, shouldTPIK and wmOffsets.TPIKAng or wmOffsets.Ang or arc9Ang, wmOffsets.Scale
     end,
-    -- FIXME: broken, base implementation relies on .WMModel which doesn't draw unless localplayer does
+    -- ISSUE: Impossible(?) to fix, base implementation relies on .WMModel which doesn't draw unless localplayer does.
     ["arccw_base"] = function(wep, wepTable)
-        -- print("wepTable", wepTable)
-
         local wmOffsets = wepTable.WorldModelOffset
 
         if !wmOffsets then
@@ -88,16 +84,11 @@ local getOffsetFuncs = {
         local bonename = wmOffsets.WMBone or "ValveBiped.Bip01_R_Hand"
         local boneindex = vm:LookupBone(bonename)
 
-        -- print("bonename/vm: ", bonename, vm)
-
         if !boneindex then
             return
         end
 
         local bpos, bang = vm:GetBonePosition(boneindex)
-
-        -- print("bpos, bang", bpos, bang)
-
         local pos = offset or Vector(0, 0, 0)
         local ang = wmOffsets.OffsetAng or Angle(0, 0, 0)
         local vs = wmOffsets.scale or 1
@@ -122,8 +113,6 @@ local getOffsetFuncs = {
         apos = apos + aang:Forward() * moffset.x
         apos = apos + aang:Right() * moffset.y
         apos = apos + aang:Up() * moffset.z
-
-        -- print("apos, aang after :Mul + :Add", apos, aang)
 
         if !apos or !aang then
             return
@@ -207,20 +196,12 @@ local emptyString = ""
 function ENT:Draw()
     eDestroyShadow(self)
 
-    -- print("ply valid/alive check incoming!")
-
     -- COMMENT
     if !aIsValid(ply) or !pAlive(ply) then
         return
     end
 
-    -- print("checks incoming!")
-
     local wep = pGetActiveWeapon(ply)
-
-    -- print("wepIsValid", aIsValid(wep))
-    -- print("wepEIsValid", eIsValid(wep))
-
     -- COMMENT
     if !aIsValid(wep) or !eIsValid(wep) then
         return
@@ -260,15 +241,7 @@ function ENT:Draw()
         eSetModel(self, wepModel)
     end
 
-    -- print("checks passed!")
-
     ApplyWeaponOffsets(self, wep, eGetTable(wep))
-
-    -- self:SetMaterial("editor/wireframe")
-
-    -- self:DrawModel()
-
-    -- self:SetMaterial("engine/occlusionproxy")
 
     eDrawModel(self)
 
