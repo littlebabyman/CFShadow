@@ -22,10 +22,10 @@ function ENT:Initialize()
         return
     end
 
-    self:SetAutomaticFrameAdvance(true)
-    self:SetMoveType(MOVETYPE_NONE)
     self:DrawShadow(true)
+    self:SetAutomaticFrameAdvance(true)
     self:SetRenderMode(RENDERMODE_NORMAL)
+    self:SetMoveType(MOVETYPE_NONE)
     self:AddEffects(EF_BONEMERGE)
     self:SetMaterial("engine/occlusionproxy")
 end
@@ -230,8 +230,6 @@ function ENT:Draw()
 
     local wepModel = wGetWeaponWorldModel(wep)
     local didOverride = false
-
-    -- print("wepModel", wepModel)
 
     if wepModel == emptyString then
         return
