@@ -134,6 +134,7 @@ local pAlive = PLAYER.Alive
 local pInVehicle = PLAYER.InVehicle
 local pShouldDrawLocalPlayer = PLAYER.ShouldDrawLocalPlayer
 local pFlashlightIsOn = PLAYER.FlashlightIsOn
+local pGetObserverMode = PLAYER.GetObserverMode
 local rGetName = FindMetaTable("ITexture").GetName
 local sLower = string.lower
 local eGetModel = ENTITY.GetModel
@@ -156,7 +157,7 @@ function ENT:Draw()
     end
 
     -- COMMENT
-    if pFlashlightIsOn(ply) then
+    if pFlashlightIsOn(ply) or pGetObserverMode(ply) != OBS_MODE_NONE then
         return
     end
 
