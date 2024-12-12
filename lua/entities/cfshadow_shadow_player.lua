@@ -23,14 +23,11 @@ function ENT:Initialize()
         return
     end
 
-    -- MsgC(color_white, "[", Color(200, 0, 0), "CFShadow", color_white, "] - Firstperson player shadow's player validity check passed!", "\n")
-
     self:DrawShadow(true)
     self:SetAutomaticFrameAdvance(true)
     self:SetRenderMode(RENDERMODE_NORMAL)
     self:SetMoveType(MOVETYPE_NONE)
     self:SetMaterial("engine/occlusionproxy")
-    -- self:SetMaterial("editor/wireframe")
 end
 
 local ENTITY = FindMetaTable("Entity")
@@ -58,7 +55,8 @@ local lastBodygroupApply = 0
 function ENT:Think()
     eSetModelScale(self, eGetModelScale(ply))
 
-    local pos = eGetPos(ply)
+    local plyPos = eGetPos(ply)
+    local pos = plyPos
     local legs = eGetTable(ply).LegEnt
 
     if IsValid(legs) then
@@ -66,6 +64,7 @@ function ENT:Think()
 
         if legsTable.DidDraw then
             pos = legsTable.RenderPos
+            pos.z = plyPos.z
         end
     end
 
@@ -178,18 +177,11 @@ function ENT:Draw()
         eSetModel(self, plyModel)
     end
 
-    -- self:SetMaterial("editor/wireframe")
-
-    -- self:DrawModel()
-
-    -- self:SetMaterial("engine/occlusionproxy")
-
     eDrawModel(self)
 
-    -- -- FIXME: Why do we have to do this manually?
     eCreateShadow(self)
 end
 
 function ENT:OnReloaded()
-    self:Remove()
+    ply = LocalPlayer()
 end

@@ -16,26 +16,20 @@ local function MakeShadows()
 
 	local client = LocalPlayer()
 
-	-- MsgC(color_white, "[", Color(200, 0, 0), "CFShadow", color_white, "] - MakeShadows called!", "\n")
-
 	if !IsValid(client) then
 		return
 	end
-
-	-- MsgC(color_white, "[", Color(200, 0, 0), "CFShadow", color_white, "] - Validity check passed!", "\n")
 
 	local plyModel = client:GetModel()
 	playerShadow = ents.CreateClientside("cfshadow_shadow_player")
 	playerShadow:SetModel(plyModel)
 	playerShadow:SetParent(client)
 	playerShadow:Spawn()
-	-- playerShadow:Activate()
 
 	weaponShadow = ents.CreateClientside("cfshadow_shadow_weapon")
 	weaponShadow:SetModel(plyModel)
 	weaponShadow:SetParent(playerShadow)
 	weaponShadow:Spawn()
-	-- weaponShadow:Activate()
 end
 
 hook.Add("InitPostEntity", "CFShadow.Init", function()

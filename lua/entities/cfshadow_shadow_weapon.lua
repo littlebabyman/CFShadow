@@ -248,5 +248,5 @@ function ENT:Draw()
 end
 
 function ENT:OnReloaded()
-    self:Remove()
+    ply = LocalPlayer()
 end
