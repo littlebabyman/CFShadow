@@ -13,6 +13,7 @@ end
 
 local function MakeShadows()
 	DestroyShadows()
+	RunConsoleCommand("cl_drawownshadow", "0")
 
 	local client = LocalPlayer()
 
