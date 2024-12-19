@@ -32,6 +32,7 @@ end
 
 local ENTITY = FindMetaTable("Entity")
 local PLAYER = FindMetaTable("Player")
+local eGetModel, eSetModel = ENTITY.GetModel, ENTITY.SetModel
 local eGetModelScale, eSetModelScale = ENTITY.GetModelScale, ENTITY.SetModelScale
 local eGetTable = ENTITY.GetTable
 local eGetPos, eSetPos = ENTITY.GetPos, ENTITY.SetPos
@@ -53,6 +54,15 @@ local haveLayeredSequencesBeenFixed = false
 local lastBodygroupApply = 0
 
 function ENT:Think()
+    local plyModel = eGetModel(ply)
+    local ourModel = eGetModel(self)
+
+    if ourModel != plyModel then
+        eSetModel(self, plyModel)
+
+        eInvalidateBoneCache(self)
+    end
+
     eSetModelScale(self, eGetModelScale(ply))
 
     local plyPos = eGetPos(ply)
@@ -136,8 +146,6 @@ local pFlashlightIsOn = PLAYER.FlashlightIsOn
 local pGetObserverMode = PLAYER.GetObserverMode
 local rGetName = FindMetaTable("ITexture").GetName
 local sLower = string.lower
-local eGetModel = ENTITY.GetModel
-local eSetModel = ENTITY.SetModel
 local eDrawModel = ENTITY.DrawModel
 local eCreateShadow = ENTITY.CreateShadow
 local waterRT = {
@@ -174,14 +182,7 @@ function ENT:Draw()
         end
     end
 
-    local plyModel = eGetModel(ply)
-
-    if eGetModel(self) != plyModel then
-        eSetModel(self, plyModel)
-    end
-
     eDrawModel(self)
-
     eCreateShadow(self)
 end
 
