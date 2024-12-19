@@ -140,7 +140,7 @@ local eGetModel = ENTITY.GetModel
 local eSetModel = ENTITY.SetModel
 local eDrawModel = ENTITY.DrawModel
 local eCreateShadow = ENTITY.CreateShadow
-local waterRT = "_rt_waterreflection"
+local waterRT = {_rt_waterreflection = true, _rt_waterrefraction = true}
 
 function ENT:Draw()
     eDestroyShadow(self)
@@ -166,7 +166,7 @@ function ENT:Draw()
     if rt then
         local rtName = sLower(rGetName(rt))
 
-        if rtName == waterRT then
+        if waterRT[rtName] then
             return
         end
     end
