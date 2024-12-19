@@ -52,6 +52,7 @@ local poseParameterBlacklist = {
 }
 local haveLayeredSequencesBeenFixed = false
 local lastBodygroupApply = 0
+local lastModelScale = nil
 
 function ENT:Think()
     local plyModel = eGetModel(ply)
@@ -63,7 +64,11 @@ function ENT:Think()
         eInvalidateBoneCache(self)
     end
 
-    eSetModelScale(self, eGetModelScale(ply))
+    local curModelScale = eGetModelScale(ply)
+
+    if curModelScale != lastModelScale then
+        eSetModelScale(self, curModelScale)
+    end
 
     local plyPos = eGetPos(ply)
     local pos = plyPos
@@ -111,7 +116,11 @@ function ENT:Think()
         eSetPoseParameter(self, i, math.Remap(eGetPoseParameter(ply, i), 0, 1, min, max))
     end
 
-    eInvalidateBoneCache(self)
+    if curModelScale != lastModelScale then
+        eInvalidateBoneCache(self)
+    end
+
+    lastModelScale = curModelScale
 
     local curTime = CurTime()
 
