@@ -33,7 +33,6 @@ end
 local ENTITY = FindMetaTable("Entity")
 local PLAYER = FindMetaTable("Player")
 local pGetActiveWeapon = PLAYER.GetActiveWeapon
-local eIsValid = ENTITY.IsValid
 local eGetNumBodyGroups = ENTITY.GetNumBodyGroups
 local eGetBodygroup = ENTITY.GetBodygroup
 local eSetBodygroup = ENTITY.SetBodygroup
@@ -42,14 +41,16 @@ local aCurTime = CurTime
 local aIsValid = IsValid
 
 function ENT:Think()
-    local curTime = aCurTime()
     local wep = pGetActiveWeapon(ply)
+    local wepValid = aIsValid(wep) and wep != NULL
 
-    if aIsValid(wep) and eIsValid(wep) then
+    if wepValid then
         for i = 1, eGetNumBodyGroups(wep) do
             eSetBodygroup(self, i, eGetBodygroup(wep, i))
         end
     end
+
+    local curTime = aCurTime()
 
     -- Set the next think to run as soon as possible, i.e. the next frame.
     eSetNextClientThink(self, curTime + 1.0)
@@ -202,8 +203,9 @@ function ENT:Draw()
     end
 
     local wep = pGetActiveWeapon(ply)
+
     -- COMMENT
-    if !aIsValid(wep) or !eIsValid(wep) then
+    if !aIsValid(wep) or wep == NULL then
         return
     end
 
@@ -229,21 +231,19 @@ function ENT:Draw()
     end
 
     local wepModel = wGetWeaponWorldModel(wep)
-    local didOverride = false
+    local ourModel = eGetModel(self)
+
+    if ourModel != wepModel then
+        eSetModel(self, wepModel)
+    end
 
     if wepModel == emptyString then
         return
     end
 
-    if !didOverride and eGetModel(self) != wepModel then
-        eSetModel(self, wepModel)
-    end
-
     ApplyWeaponOffsets(self, wep, eGetTable(wep))
 
     eDrawModel(self)
-
-    -- FIXME: Why do we have to do this manually?
     eCreateShadow(self)
 end
 
