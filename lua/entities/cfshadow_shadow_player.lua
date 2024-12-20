@@ -159,7 +159,7 @@ function ENT:Draw()
     end
 
     -- COMMENT
-    if pFlashlightIsOn(ply) or pGetObserverMode(ply) != OBS_MODE_NONE then
+    if ply:GetNWBool("DynamicFlashlight") or pFlashlightIsOn(ply) or pGetObserverMode(ply) != OBS_MODE_NONE then
         return
     end
 
