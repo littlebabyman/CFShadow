@@ -30,8 +30,10 @@ function ENT:Initialize()
     self:SetMaterial("engine/occlusionproxy")
 end
 
+local shouldYaw = CreateClientConVar("cl_firstperson_shadow_yaw", 0, true, false, "Whether aim_yaw pose parameter should be applied or not. Disabled by default as it looks a bit weird.", 0, 1)
 local ENTITY = FindMetaTable("Entity")
 local PLAYER = FindMetaTable("Player")
+local eGetModel, eSetModel = ENTITY.GetModel, ENTITY.SetModel
 local eGetModelScale, eSetModelScale = ENTITY.GetModelScale, ENTITY.SetModelScale
 local eGetTable = ENTITY.GetTable
 local eGetPos, eSetPos = ENTITY.GetPos, ENTITY.SetPos
@@ -46,14 +48,25 @@ local eInvalidateBoneCache = ENTITY.InvalidateBoneCache
 local eGetNumBodyGroups = ENTITY.GetNumBodyGroups
 local eGetBodygroup, eSetBodygroup = ENTITY.GetBodygroup, ENTITY.SetBodygroup
 local eSetNextClientThink = ENTITY.SetNextClientThink
-local poseParameterBlacklist = {
-    ["aim_yaw"] = true
-}
 local haveLayeredSequencesBeenFixed = false
 local lastBodygroupApply = 0
+local lastModelScale = nil
 
 function ENT:Think()
-    eSetModelScale(self, eGetModelScale(ply))
+    local plyModel = eGetModel(ply)
+    local ourModel = eGetModel(self)
+
+    if ourModel != plyModel then
+        eSetModel(self, plyModel)
+
+        eInvalidateBoneCache(self)
+    end
+
+    local curModelScale = eGetModelScale(ply)
+
+    if curModelScale != lastModelScale then
+        eSetModelScale(self, curModelScale)
+    end
 
     local plyPos = eGetPos(ply)
     local pos = plyPos
@@ -92,7 +105,7 @@ function ENT:Think()
     for i = 0, eGetNumPoseParameters(ply) - 1 do
         local name = eGetPoseParameterName(ply, i)
 
-        if poseParameterBlacklist[name] then
+        if !shouldYaw:GetBool() and name == "aim_yaw" then
             continue
         end
 
@@ -101,7 +114,11 @@ function ENT:Think()
         eSetPoseParameter(self, i, math.Remap(eGetPoseParameter(ply, i), 0, 1, min, max))
     end
 
-    eInvalidateBoneCache(self)
+    if curModelScale != lastModelScale then
+        eInvalidateBoneCache(self)
+    end
+
+    lastModelScale = curModelScale
 
     local curTime = CurTime()
 
@@ -136,8 +153,6 @@ local pFlashlightIsOn = PLAYER.FlashlightIsOn
 local pGetObserverMode = PLAYER.GetObserverMode
 local rGetName = FindMetaTable("ITexture").GetName
 local sLower = string.lower
-local eGetModel = ENTITY.GetModel
-local eSetModel = ENTITY.SetModel
 local eDrawModel = ENTITY.DrawModel
 local eCreateShadow = ENTITY.CreateShadow
 local waterRT = {
@@ -173,14 +188,6 @@ function ENT:Draw()
             return
         end
     end
-
-    local plyModel = eGetModel(ply)
-
-    if eGetModel(self) != plyModel then
-        eSetModel(self, plyModel)
-    end
-
-    eDrawModel(self)
 
     eCreateShadow(self)
 end
