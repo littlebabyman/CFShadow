@@ -30,6 +30,7 @@ function ENT:Initialize()
     self:SetMaterial("engine/occlusionproxy")
 end
 
+local shouldYaw = CreateClientConVar("cl_firstperson_shadow_yaw", 0, true, false, "Whether aim_yaw pose parameter should be applied or not. Disabled by default as it looks a bit weird.", 0, 1)
 local ENTITY = FindMetaTable("Entity")
 local PLAYER = FindMetaTable("Player")
 local eGetModel, eSetModel = ENTITY.GetModel, ENTITY.SetModel
@@ -47,9 +48,6 @@ local eInvalidateBoneCache = ENTITY.InvalidateBoneCache
 local eGetNumBodyGroups = ENTITY.GetNumBodyGroups
 local eGetBodygroup, eSetBodygroup = ENTITY.GetBodygroup, ENTITY.SetBodygroup
 local eSetNextClientThink = ENTITY.SetNextClientThink
-local poseParameterBlacklist = {
-    ["aim_yaw"] = true
-}
 local haveLayeredSequencesBeenFixed = false
 local lastBodygroupApply = 0
 local lastModelScale = nil
@@ -107,7 +105,7 @@ function ENT:Think()
     for i = 0, eGetNumPoseParameters(ply) - 1 do
         local name = eGetPoseParameterName(ply, i)
 
-        if poseParameterBlacklist[name] then
+        if !shouldYaw:GetBool() and name == "aim_yaw" then
             continue
         end
 
@@ -191,7 +189,6 @@ function ENT:Draw()
         end
     end
 
-    eDrawModel(self)
     eCreateShadow(self)
 end
 
